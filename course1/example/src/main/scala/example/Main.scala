@@ -1,4 +1,4 @@
-package example
+package recfun
 
 
 object Main extends App {

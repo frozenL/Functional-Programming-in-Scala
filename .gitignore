@@ -18,7 +18,9 @@ project/plugins/project/
 .worksheet
 .idea
 
-# Eclipse core
+# Eclipse
 .project
+.settings/
+.classpath
 
 workspace/
