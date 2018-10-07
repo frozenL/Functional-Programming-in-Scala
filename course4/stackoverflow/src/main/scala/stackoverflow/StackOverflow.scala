@@ -103,7 +103,6 @@ class StackOverflow extends Serializable {
     })
   }
 
-
   /** Compute the vectors for the kmeans */
   def vectorPostings(scored: RDD[(Question, HighScore)]): RDD[(LangIndex, HighScore)] = {
     /** Return optional index of first language that occurs in `tags`. */
@@ -120,7 +119,7 @@ class StackOverflow extends Serializable {
       }
     }
 
-    ???
+    scored.map(qh => { (firstLangInTag(qh._1.tags, langs).get * langSpread, qh._2) }).filter(_._1 >= 0).cache()
   }
 
 
@@ -175,9 +174,9 @@ class StackOverflow extends Serializable {
 
   /** Main kmeans computation */
   @tailrec final def kmeans(means: Array[(Int, Int)], vectors: RDD[(Int, Int)], iter: Int = 1, debug: Boolean = false): Array[(Int, Int)] = {
-    val newMeans = means.clone() // you need to compute newMeans
+    val newCentres = vectors.map(p => (findClosest(p, means), p)).groupByKey().mapValues(averageVectors).collect().toMap
+    val newMeans = means.indices.map(i => newCentres.getOrElse(i, means(i))).toArray
 
-    // TODO: Fill in the newMeans array
     val distance = euclideanDistance(means, newMeans)
 
     if (debug) {
@@ -278,10 +277,17 @@ class StackOverflow extends Serializable {
     val closestGrouped = closest.groupByKey()
 
     val median = closestGrouped.mapValues { vs =>
-      val langLabel: String   = ??? // most common language in the cluster
-      val langPercent: Double = ??? // percent of the questions in the most common language
-      val clusterSize: Int    = ???
-      val medianScore: Int    = ???
+      val langGroup: Map[LangIndex, Int] = vs.groupBy(_._1).mapValues(_.size)
+      val langGroupMaxItem: (LangIndex, Int) = langGroup.maxBy(_._2)
+      val langLabel: String   = langs(langGroupMaxItem._1 / langSpread) // most common language in the cluster
+      val langPercent: Double = langGroupMaxItem._2.toDouble * 100.0 / vs.size.toDouble // percent of the questions in the most common language
+      val clusterSize: Int    = vs.size
+
+      val sortedScored = vs.map(_._2).toList.sorted
+      val medianScore: Int    = sortedScored.size % 2 match {
+          case 0 => (sortedScored(sortedScored.size / 2) + sortedScored(sortedScored.size / 2 - 1)) / 2
+          case _ => sortedScored(sortedScored.size / 2)
+      }
 
       (langLabel, langPercent, clusterSize, medianScore)
     }
