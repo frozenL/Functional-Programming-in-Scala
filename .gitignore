@@ -24,3 +24,6 @@ project/plugins/project/
 .classpath
 
 workspace/
+
+# large files
+atussum.csv
